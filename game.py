@@ -1,12 +1,11 @@
 import tkinter as tk
 import random
 import pickle
-from tkinter import messagebox
-from tkinter import filedialog
+from tkinter import messagebox, filedialog
 from abc import ABC, abstractmethod
 
 
-class AbstractCell(ABC):
+class Cell(ABC):
     def __init__(self, is_alive=False):
         self.is_alive = is_alive
 
@@ -15,26 +14,15 @@ class AbstractCell(ABC):
         pass
 
 
-class AbstractCellFactory(ABC):
-    @abstractmethod
-    def create_cell(self, is_alive=False):
-        pass
-
-
-class Cell(AbstractCell):
+class BasicCell(Cell):
     def update(self, is_alive):
         self.is_alive = is_alive
 
 
-class CellFactory(AbstractCellFactory):
-    def create_cell(self, is_alive=False):
-        return Cell(is_alive)
-
-
 class GameOfLife:
-    def __init__(self, rows, cols, cell_factory):
+    def __init__(self, rows, cols, cell_class):
         self.rows, self.cols = rows, cols
-        self.grid = [[cell_factory.create_cell() for _ in range(cols)] for _ in range(rows)]
+        self.grid = [[cell_class() for _ in range(cols)] for _ in range(rows)]
 
     def step(self):
         changes = [(i, j, False) if self.grid[i][j].is_alive and (live := self.count_live_neighbours(i, j)) not in {2, 3}
@@ -47,7 +35,8 @@ class GameOfLife:
 
     def count_live_neighbours(self, row, col):
         directions = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]
-        return sum(1 for dr, dc in directions if 0 <= (row + dr) < self.rows and 0 <= (c := col + dc) < self.cols and self.grid[row + dr][c].is_alive)
+        return sum(1 for dr, dc in directions if 0 <= (row + dr) < self.rows and 0 <= (c := col + dc) < self.cols and
+                   self.grid[row + dr][c].is_alive)
 
     def randomize(self):
         for row in self.grid:
@@ -58,19 +47,25 @@ class GameOfLife:
 class GameOfLifeGUI:
     def __init__(self, root, rows, cols, cell_size=10):
         self.root, self.rows, self.cols, self.cell_size = root, rows, cols, cell_size
-        self.game_running, self.game = False, GameOfLife(rows, cols, CellFactory())
+        self.game_running, self.game = False, GameOfLife(rows, cols, BasicCell)
         self.canvas = tk.Canvas(root, width=cols * cell_size, height=rows * cell_size)
         self.canvas.pack()
-        self.start_button = tk.Button(root, text="Start", command=self.toggle_game_state)
+
+        self.create_widgets()
+
+    def create_widgets(self):
+        self.start_button = tk.Button(self.root, text="Start", command=self.toggle_game_state)
         self.start_button.pack()
+
+        self.save_button = tk.Button(self.root, text="Save", command=self.save_game)
+        self.save_button.pack()
+
+        self.load_button = tk.Button(self.root, text="Load", command=self.load_game)
+        self.load_button.pack()
+
         self.draw_grid()
         self.game.randomize()
         self.update_canvas()
-
-        self.save_button = tk.Button(root, text="Save", command=self.save_game)
-        self.save_button.pack()
-        self.load_button = tk.Button(root, text="Load", command=self.load_game)
-        self.load_button.pack()
 
     def toggle_game_state(self):
         self.game_running = not self.game_running
@@ -86,7 +81,8 @@ class GameOfLifeGUI:
     def draw_grid(self):
         for i in range(self.rows):
             for j in range(self.cols):
-                x1, y1, x2, y2 = j * self.cell_size, i * self.cell_size, (j + 1) * self.cell_size, (i + 1) * self.cell_size
+                x1, y1 = j * self.cell_size, i * self.cell_size
+                x2, y2 = x1 + self.cell_size, y1 + self.cell_size
                 self.canvas.create_rectangle(x1, y1, x2, y2, fill="white", outline="gray", tags=f"cell_{i}_{j}")
                 self.canvas.tag_bind(f"cell_{i}_{j}", '<Button-1>', lambda event, i=i, j=j: self.toggle_cell(i, j))
 
@@ -102,7 +98,7 @@ class GameOfLifeGUI:
         self.update_canvas()
 
     def save_game(self):
-        filepath = filedialog.asksaveasfilename(defaultextension=".gol", filetypes=[("Game of Life files", "*.gol"), ("All files", "*.*")])
+        filepath = filedialog.asksaveasfilename(defaultextension=".gol", filetypes=[("Game of Life", "*.gol"), ("All files", "*.*")])
         if not filepath:
             return
 
@@ -133,5 +129,5 @@ class GameOfLifeGUI:
 
 if __name__ == "__main__":
     root = tk.Tk()
-    app = GameOfLifeGUI(root, 40, 40, 10)
+    game_of_life_gui = GameOfLifeGUI(root, 40, 40, 10)
     root.mainloop()
