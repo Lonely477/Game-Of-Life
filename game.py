@@ -4,7 +4,6 @@ import pickle
 from tkinter import messagebox, filedialog
 from abc import ABC, abstractmethod
 
-
 class Cell(ABC):
     def __init__(self, is_alive=False):
         self.is_alive = is_alive
